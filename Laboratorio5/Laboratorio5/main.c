@@ -10,12 +10,15 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include "PWM1/PWM1.h"
+#include "PWM2/PWM2.h"
 
 /****************************************/
 // Prototipos de función
 void setup(void);
 void ADC_Init(void);
 uint16_t ADC_Read(void);
+
+volatile uint8_t potenciometro = 0;
 
 /****************************************/
 // Función principal
@@ -25,12 +28,18 @@ int main(void) {
 	
 	while (1) {
 		// Leer valor del potenciómetro (0-1023)
-		uint16_t valor_ADC = ADC_Read();
-		
 		// Mapear ADC a ancho de pulso (2000-4000 = 1ms-2ms @ 16MHz, prescaler 8)
-		uint16_t dutyCycle = (valor_ADC * 4000UL / 1023) + 1000;
-		
-		update_DutyCycle(dutyCycle); // Actualizar PWM
+		if (potenciometro == 0)
+		{
+			uint16_t valor_ADC2 = ADC_Read();
+			uint16_t dutyCycle2 = (valor_ADC2 * 4000UL / 1023) + 1000;
+			update_DutyCycle2(dutyCycle2); // Actualizar PWM
+		}
+		else{
+			uint16_t valor_ADC1 = ADC_Read();
+			uint16_t dutyCycle1 = (valor_ADC1 * 4000UL / 1023) + 1000;
+			update_DutyCycle1(dutyCycle1); // Actualizar PWM
+		}
 		_delay_ms(20); // Delay para estabilidad
 	}
 }
@@ -40,7 +49,14 @@ int main(void) {
 void setup(void){
 	cli();
 	ADC_Init();
-	PWM_Init();
+	PWM1_Init();
+	PWM2_Init();
+	
+	// Habilitar interrupciones del TIMER0
+	TCCR0A = 0x00;  // Modo Normal
+	TCCR0B = (1 << CS01) | (1 << CS00);   //Prescaler 64
+	TCNT0 = 131;
+	TIMSK0 = (1 << TOIE0);
 	sei();
 }
 
@@ -57,4 +73,20 @@ uint16_t ADC_Read(void) {
 	ADCSRA |= (1 << ADSC); // Iniciar conversión
 	while (ADCSRA & (1 << ADSC)); // Esperar hasta que la conversión se complete
 	return ADC; // Retornar valor convertido
+}
+
+/****************************************/
+// Subrutinas de Interrupcion
+ISR(TIMER0_OVF_vect){
+	ADMUX = 0;
+	if (potenciometro == 0)
+	{
+		potenciometro = 1;
+		ADMUX |= (1<<REFS0)|(1<<MUX2)|(1<<MUX1)|(1<<MUX0);
+	}
+	else{
+		potenciometro = 0;
+		ADMUX |= (1<<REFS0)|(1<<MUX2)|(1<<MUX1);
+	}
+	_delay_us(1);
 }

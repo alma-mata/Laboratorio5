@@ -7,7 +7,7 @@
 #ifndef PWM1_H_
 #define PWM1_H_
 
-void PWM_Init(void);
-void update_DutyCycle(uint16_t dutyCycle);
+void PWM1_Init(void);
+void update_DutyCycle1(uint16_t dutyCycle);
 
 #endif /* PWM1_H_ */

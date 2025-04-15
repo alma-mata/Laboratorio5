@@ -6,3 +6,5 @@ main.c
 
 PWM1\PWM1.c
 
+PWM2\PWM2.c
+
