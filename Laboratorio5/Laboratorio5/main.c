@@ -1,7 +1,11 @@
 /*
-* Laboratorio5.c
-* Control de servomotor con PWM usando Timer1 a 16MHz
-* Author: Alma Mata
+ * Universidad del Valle de Guatemala
+ * IE2023: Programacion de Microcontroladores
+ * Laboratorio5.c
+ * Autor: Alma Lisbeth Mata Ixcayau
+ * Proyecto: Laboratorio 5
+ * Descripcion: Control de servomotores y led con PWM
+ * Creado: 10/04/2025
 */
 /****************************************/
 // Encabezado
@@ -11,6 +15,7 @@
 #include <avr/interrupt.h>
 #include "PWM1/PWM1.h"
 #include "PWM2/PWM2.h"
+#include "PWM3/PWM3.h"
 
 /****************************************/
 // Prototipos de función
@@ -18,8 +23,10 @@ void setup(void);
 void ADC_Init(void);
 uint16_t ADC_Read(void);
 
-volatile uint8_t potenciometro = 0;
-
+volatile uint16_t POT1 = 0;
+volatile uint16_t POT2 = 0;
+volatile uint16_t POT3 = 0;
+volatile uint8_t canal_ADC = 0;
 /****************************************/
 // Función principal
 int main(void) {
@@ -27,20 +34,9 @@ int main(void) {
 	setup();
 	
 	while (1) {
-		// Leer valor del potenciómetro (0-1023)
-		// Mapear ADC a ancho de pulso (2000-4000 = 1ms-2ms @ 16MHz, prescaler 8)
-		if (potenciometro == 0)
-		{
-			uint16_t valor_ADC2 = ADC_Read();
-			uint16_t dutyCycle2 = (valor_ADC2 * 4000UL / 1023) + 1000;
-			update_DutyCycle2(dutyCycle2); // Actualizar PWM
-		}
-		else{
-			uint16_t valor_ADC1 = ADC_Read();
-			uint16_t dutyCycle1 = (valor_ADC1 * 4000UL / 1023) + 1000;
-			update_DutyCycle1(dutyCycle1); // Actualizar PWM
-		}
-		_delay_ms(20); // Delay para estabilidad
+		update_DutyCycle1(500 + (POT1 * 2000UL / 1023));
+		update_DutyCycle2(500 + (POT2 * 2000UL / 1023));
+		update_DutyCycle3(POT3 >> 2);
 	}
 }
 
@@ -51,42 +47,28 @@ void setup(void){
 	ADC_Init();
 	PWM1_Init();
 	PWM2_Init();
-	
-	// Habilitar interrupciones del TIMER0
-	TCCR0A = 0x00;  // Modo Normal
-	TCCR0B = (1 << CS01) | (1 << CS00);   //Prescaler 64
-	TCNT0 = 131;
-	TIMSK0 = (1 << TOIE0);
+	PWM3_Init();
 	sei();
 }
 
 // Configuración ADC
 void ADC_Init(void) {
 	ADMUX = 0;
-	ADMUX |= (1<<REFS0)|(1<<MUX2)|(1<<MUX1)|(1<<MUX0); // AVcc como referencia
+	ADMUX |= (1 << REFS0) | (canal_ADC & 0x07); // AVcc como referencia
 	ADCSRA = 0;
-	ADCSRA |= (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // Habilitar ADC con prescaler de 128 (16MHz/128 = 125kHz)
-}
-
-// Lectura del ADC
-uint16_t ADC_Read(void) {
-	ADCSRA |= (1 << ADSC); // Iniciar conversión
-	while (ADCSRA & (1 << ADSC)); // Esperar hasta que la conversión se complete
-	return ADC; // Retornar valor convertido
+	ADCSRA |= (1 << ADEN) | (1 << ADIE) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // Habilitar ADC con prescaler de 128 (16MHz/128 = 125kHz)
+	ADCSRA |= (1<<ADSC); // Inicia primera conversión del ADC
 }
 
 /****************************************/
 // Subrutinas de Interrupcion
-ISR(TIMER0_OVF_vect){
-	ADMUX = 0;
-	if (potenciometro == 0)
-	{
-		potenciometro = 1;
-		ADMUX |= (1<<REFS0)|(1<<MUX2)|(1<<MUX1)|(1<<MUX0);
+ISR(ADC_vect){
+	switch (canal_ADC){
+		case 0: POT1 = ADC; break;
+		case 1: POT2 = ADC; break;
+		case 2: POT3 = ADC; break;
 	}
-	else{
-		potenciometro = 0;
-		ADMUX |= (1<<REFS0)|(1<<MUX2)|(1<<MUX1);
-	}
-	_delay_us(1);
+	canal_ADC = (canal_ADC + 1) % 3;
+	ADMUX = (ADMUX & 0xF0) | (canal_ADC & 0x07);
+	ADCSRA |= (1 << ADSC); // Volver a iniciar conversion
 }

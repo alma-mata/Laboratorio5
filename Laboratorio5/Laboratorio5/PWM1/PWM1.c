@@ -1,9 +1,13 @@
 /*
-* Laboratorio5.c
-* Control de servomotor con PWM usando Timer1 a 16MHz
-* Author: Alma Mata
+ * Universidad del Valle de Guatemala
+ * IE2023: Programacion de Microcontroladores
+ * PWM1.c
+ * Autor: Alma Lisbeth Mata Ixcayau
+ * Proyecto: Laboratorio 5
+ * Descripcion: Control de servomotor con PWM usando Timer1 a 16MHz
+ * Creado: 10/04/2025
 */
-#include <avr/io.h>
+
 #include "PWM1.h"
 
 void PWM1_Init(void) {
@@ -12,10 +16,9 @@ void PWM1_Init(void) {
 	
 	// Modo Fast PWM con ICR1 como TOP (Modo 14)
 	TCCR1A = (1 << COM1A1) | (1 << WGM11); // Clear OC1A on compare match, set at BOTTOM (non-inverting)
-	TCCR1B = (1 << WGM13) | (1 << WGM12) | (1 << CS11); // Prescaler 8
+	TCCR1B = (1 << WGM13) | (1 << CS11); // Prescaler 8
 	
-	ICR1 = 39999; // Periodo PWM para 50Hz (16MHz/(8*50Hz) - 1 = 39999)
-	OCR1A = 3000; // Ancho de pulso inicial (1.5ms - posición neutra)
+	ICR1 = 20000;
 }
 
 // Establece el ancho de pulso en ticks del Timer1
